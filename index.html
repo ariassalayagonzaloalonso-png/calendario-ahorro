@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calendario de Ahorro</title>
+<style>
+body {
+    font-family: Arial, sans-serif;
+    background: #d608c874;
+    padding: 20px;
+}
+.app {
+    max-width: 480px;
+    margin: auto;
+    background: rgb(177, 20, 156);
+    border-radius: 28px;
+    padding: 32px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+}
+h1{
+    color: #dbeafe;
+    background-color: #e80aa9;
+    display: flex;
+    justify-content: center;
+    border-radius: 35px;
+    
+}
+h2{
+    color: #dbeafe;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+.calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 5px;
+    margin-top: 22px;
+}
+.day {
+    padding: 15px;
+    text-align: center;
+    border-radius: 10px;
+    background: #eee;
+}
+.saturday {
+    background: #dbeafe;
+    cursor: pointer;
+}
+.both { background: #01e956b8; }
+.you { background: #fde68a; }
+.partner { background: #fcd34d; }
+.none { background: #e96d6d; }
+
+.summary {
+    margin-top: 40px;
+    font-size: 15px; 
+    display: flex;
+    justify-content: space-between;
+}
+p{
+    padding: 15px;
+    width: 150px;
+    border-radius: 20px;
+    background: #ffffff;
+}
+
+@media (max-width: 480px) {
+
+    body {
+        padding: 10px;
+    }
+
+    .app {
+        max-width: 100%;
+        padding: 20px;
+        border-radius: 22px;
+    }
+
+    h1 {
+        font-size: 18px;
+        padding: 10px;
+        text-align: center;
+    }
+
+    header h2 {
+        font-size: 16px;
+    }
+
+    header button {
+        font-size: 18px;
+        padding: 6px 10px;
+        border-radius: 10px;
+    }
+
+    .calendar {
+        gap: 4px;
+    }
+
+    .day {
+        padding: 10px;
+        font-size: 14px;
+    }
+
+    .summary {
+        flex-direction: column;
+        gap: 12px;
+        align-items: center;
+    }
+
+    .summary p {
+        width: 100%;
+        text-align: center;
+        font-size: 14px;
+    }
+}
+
+
+</style>
+</head>
+<body>
+
+<div class="app">
+    <h1>calendario de pau y alon🤍</h1>
+    <header>
+        <button onclick="changeMonth(-1)">◀</button>
+        <h2 id="monthYear"></h2>
+        <button onclick="changeMonth(1)">▶</button>
+    </header>
+
+    <div class="calendar" id="calendar"></div>
+
+    <div class="summary">
+        <p> Deuda de Alo: $<span id="debtYou">0</span></p>
+        <p> Deuda de Pau: $<span id="debtPartner">0</span></p>
+    </div>
+</div>
+
+<script>
+let currentDate = new Date();
+const paymentValue = 100;
+const data = JSON.parse(localStorage.getItem("savings")) || {};
+
+function saveData() {
+    localStorage.setItem("savings", JSON.stringify(data));
+}
+
+function changeMonth(dir) {
+    currentDate.setMonth(currentDate.getMonth() + dir);
+    renderCalendar();
+}
+
+function renderCalendar() {
+    const calendar = document.getElementById("calendar");
+    calendar.innerHTML = "";
+
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+
+    document.getElementById("monthYear").innerText =
+        currentDate.toLocaleString("es", { month: "long", year: "numeric" });
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    for (let i = 0; i < firstDay; i++) {
+        calendar.innerHTML += `<div></div>`;
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day);
+        const key = date.toISOString().split("T")[0];
+        const div = document.createElement("div");
+        div.innerText = day;
+        div.classList.add("day");
+
+        if (date.getDay() === 6) {
+            div.classList.add("saturday");
+
+            if (data[key]) div.classList.add(data[key]);
+
+            div.onclick = () => setPayment(key, div);
+        }
+
+        calendar.appendChild(div);
+    }
+
+    updateDebt();
+}
+
+function setPayment(key, div) {
+
+    // 👉 Si ya hay un registro, preguntar si quiere borrarlo
+    if (data[key]) {
+        const borrar = confirm("Este sábado ya tiene un registro.\n¿Quieres borrarlo?");
+        if (borrar) {
+            div.classList.remove("both", "you", "partner", "none");
+            delete data[key];
+            saveData();
+            updateDebt();
+            return;
+        }
+    }
+
+    const option = prompt(
+`Pago del sábado:
+1 = Pagaron los dos
+2 = Solo pagaste tú
+3 = Solo pagó tu novia
+4 = Nadie pagó
+(Cancelar = no hacer nada)`
+    );
+
+    if (!option) return;
+
+    div.classList.remove("both", "you", "partner", "none");
+
+    if (option === "1") data[key] = "both";
+    if (option === "2") data[key] = "you";
+    if (option === "3") data[key] = "partner";
+    if (option === "4") data[key] = "none";
+
+    if (data[key]) {
+        div.classList.add(data[key]);
+        saveData();
+        updateDebt();
+    }
+}
+function updateDebt() {
+    let debtYou = 0;
+    let debtPartner = 0;
+
+    for (let key in data) {
+        if (data[key] === "partner") debtYou += paymentValue;
+        if (data[key] === "you") debtPartner += paymentValue;
+        if (data[key] === "none") {
+            debtYou += paymentValue;
+            debtPartner += paymentValue;
+        }
+    }
+
+    document.getElementById("debtYou").innerText = debtYou;
+    document.getElementById("debtPartner").innerText = debtPartner;
+}
+
+renderCalendar();
+</script>
+
+</body>
+</html>
